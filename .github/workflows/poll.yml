@@ -1,0 +1,61 @@
+name: AMC IMAX Showtime Poller
+
+# Two schedules:
+#   normal  — every 15 minutes around the clock
+#   peak    — every 5 minutes from 13:00–17:00 UTC (≈ 9 AM–1 PM ET)
+#
+# Adjust PEAK_HOURS_UTC below to match your local morning window.
+# GitHub Actions cron always runs in UTC.
+#
+# Free-tier usage estimate (private repo, 2 000 min/month limit):
+#   normal: 4/hr × 24 h × 30 d × ~0.5 min/run  ≈  1 440 min/month  ✓
+#   peak adds ~12 extra runs/day × ~0.5 min      ≈     90 min/month  ✓
+#   Total                                         ≈  1 530 min/month  ✓
+
+on:
+  schedule:
+    # Normal polling — every 15 minutes
+    - cron: "*/15 * * * *"
+    # Peak polling — every 5 minutes, 13:00–17:00 UTC
+    - cron: "*/5 13-16 * * *"
+  # Allow manual trigger from the GitHub Actions UI
+  workflow_dispatch:
+
+jobs:
+  poll:
+    name: Poll IMAX showtimes
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # Restore the previous state.json so we only alert on genuinely new showtimes.
+      # The key includes run_id so a fresh cache is always saved after each run.
+      # restore-keys finds the latest saved cache matching the prefix.
+      - name: Restore state cache
+        uses: actions/cache@v4
+        with:
+          path: state.json
+          key: amc-state-${{ github.run_id }}
+          restore-keys: |
+            amc-state-
+
+      - name: Run single poll
+        env:
+          AMC_API_KEY:        ${{ secrets.AMC_API_KEY }}
+          THEATRE_NUMBER:     ${{ vars.THEATRE_NUMBER }}
+          GMAIL_USER:         ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          NOTIFY_EMAIL:       ${{ secrets.NOTIFY_EMAIL }}
+        run: python main.py --once
+
+      # state.json is automatically saved by actions/cache after the job completes.
