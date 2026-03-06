@@ -37,7 +37,7 @@ from dotenv import load_dotenv
 
 from amc_client import AMCClient
 from notifier import send_notification
-from state import find_new_showtimes, load_seen_ids, save_seen_ids
+from state import find_new_showtimes, load_seen_ids, log_discoveries, save_seen_ids
 
 load_dotenv()
 
@@ -179,9 +179,14 @@ def _do_poll(label: str = "poll") -> None:
 
     logger.info("Fetched %d IMAX showtime(s).", len(showtimes))
 
+    # Inject theatre name so log_discoveries can store it without a separate arg
+    for st in showtimes:
+        st["_theatre_name"] = theatre_name
+
     new = find_new_showtimes(showtimes, seen_ids)
     if new:
         logger.info("Found %d new showtime(s) — sending notification.", len(new))
+        log_discoveries(new)
         send_notification(
             gmail_user=GMAIL_USER,
             gmail_app_password=GMAIL_APP_PASSWORD,

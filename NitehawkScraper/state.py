@@ -1,71 +1,35 @@
 """
-Persistent state management — SQLite backend.
+Persistent state management — PostgreSQL backend.
 
-Two tables live in a single `nitehawk.db` file:
+All data lives in the `nitehawk_showtimes` table (created by
+migrations/001_init.sql).  Each row represents one showtime the bot has
+ever detected; the row's existence is the "seen" signal.
 
-  seen_showtimes   — one row per showtime ID that has already triggered an
-                     alert; prevents duplicate notifications across restarts.
+Connection is configured via the DATABASE_URL environment variable:
+  postgresql://movies:<password>@postgres:5432/movies
 
-  discoveries      — append-only log of every newly-seen showtime with its
-                     full metadata and the exact local timestamp it was first
-                     detected.  Used by analyze.py to learn which hours
-                     Nitehawk typically posts new programming.
-
-The database path defaults to ./nitehawk.db and can be overridden with the
-DB_FILE environment variable (useful for GitHub Actions / Docker volume mounts).
-
-Public interface (unchanged from the previous JSON+CSV implementation):
+Public interface (unchanged — main.py requires no edits):
   load_seen_ids()                → set[str]
-  save_seen_ids(seen_ids)        → None
+  save_seen_ids(seen_ids)        → None   (no-op; DB write happens in log_discoveries)
   log_discoveries(new_showtimes) → None
   find_new_showtimes(showtimes, seen_ids) → list[dict]
 """
 
 import logging
 import os
-import sqlite3
 from datetime import datetime
-from pathlib import Path
+
+import psycopg2
+import psycopg2.extras
 
 logger = logging.getLogger(__name__)
 
-DB_FILE = Path(os.getenv("DB_FILE", "nitehawk.db"))
-
-# ---------------------------------------------------------------------------
-# Schema
-# ---------------------------------------------------------------------------
-
-_DDL = """
-CREATE TABLE IF NOT EXISTS seen_showtimes (
-    id TEXT PRIMARY KEY
-);
-
-CREATE TABLE IF NOT EXISTS discoveries (
-    rowid        INTEGER PRIMARY KEY AUTOINCREMENT,
-    showtime_id  TEXT    NOT NULL,
-    discovered_at TEXT   NOT NULL,  -- ISO-8601 local datetime
-    hour         INTEGER NOT NULL,  -- 0–23, for peak-hour analysis
-    weekday      TEXT    NOT NULL,  -- Monday … Sunday
-    title        TEXT    NOT NULL,
-    date         TEXT    NOT NULL,  -- human-readable, e.g. "Wed, Apr 15"
-    showtime     TEXT    NOT NULL,  -- e.g. "7:15 pm"
-    location     TEXT    NOT NULL,  -- "Williamsburg" | "Prospect Park"
-    series       TEXT    NOT NULL,  -- pipe-separated series labels
-    purchase_url TEXT    NOT NULL,
-    details_url  TEXT    NOT NULL
-);
-"""
+_TABLE = "nitehawk_showtimes"
 
 
-def _connect() -> sqlite3.Connection:
-    """Open (and if necessary create) the database, returning a connection."""
-    DB_FILE.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(DB_FILE)
-    conn.execute("PRAGMA journal_mode=WAL")   # safe concurrent writes
-    conn.execute("PRAGMA foreign_keys=ON")
-    conn.executescript(_DDL)
-    conn.commit()
-    return conn
+def _connect() -> psycopg2.extensions.connection:
+    url = os.environ["DATABASE_URL"]
+    return psycopg2.connect(url)
 
 
 # ---------------------------------------------------------------------------
@@ -74,45 +38,30 @@ def _connect() -> sqlite3.Connection:
 
 
 def load_seen_ids() -> set[str]:
-    """Return the set of showtime IDs that have already triggered an alert."""
+    """Return all showtime IDs already stored in the database."""
     try:
-        with _connect() as conn:
-            rows = conn.execute("SELECT id FROM seen_showtimes").fetchall()
-        seen = {row[0] for row in rows}
-        logger.debug("Loaded %d seen ID(s) from %s", len(seen), DB_FILE)
-        return seen
-    except sqlite3.Error as exc:
-        logger.warning("Could not read DB (%s); starting fresh.", exc)
+        with _connect() as conn, conn.cursor() as cur:
+            cur.execute(f"SELECT id FROM {_TABLE}")
+            return {row[0] for row in cur.fetchall()}
+    except Exception as exc:
+        logger.warning("Could not load seen IDs from DB (%s); starting fresh.", exc)
         return set()
 
 
 def save_seen_ids(seen_ids: set[str]) -> None:
     """
-    Persist seen showtime IDs to the database.
+    No-op — the database write is handled by log_discoveries().
 
-    Uses INSERT OR IGNORE so existing rows are left untouched and only
-    genuinely new IDs are written.
+    Kept so main.py requires no changes.
     """
-    if not seen_ids:
-        return
-    try:
-        with _connect() as conn:
-            conn.executemany(
-                "INSERT OR IGNORE INTO seen_showtimes (id) VALUES (?)",
-                [(sid,) for sid in seen_ids],
-            )
-            conn.commit()
-        logger.debug("Saved %d ID(s) to %s", len(seen_ids), DB_FILE)
-    except sqlite3.Error as exc:
-        logger.error("Could not write seen IDs to DB: %s", exc)
 
 
 def log_discoveries(new_showtimes: list[dict]) -> None:
     """
-    Append one row per newly-detected showtime to the discoveries table.
+    Insert one row per newly-detected showtime into nitehawk_showtimes.
 
-    Captures the exact local timestamp so analyze.py can determine which
-    hours Nitehawk tends to post new programming.
+    ON CONFLICT DO NOTHING makes this idempotent — safe to call even if a
+    showtime somehow appears twice in the same poll cycle.
     """
     if not new_showtimes:
         return
@@ -121,9 +70,6 @@ def log_discoveries(new_showtimes: list[dict]) -> None:
     rows = [
         (
             st.get("id", ""),
-            now.strftime("%Y-%m-%d %H:%M:%S"),
-            now.hour,
-            now.strftime("%A"),
             st.get("title", ""),
             st.get("date", ""),
             st.get("time", ""),
@@ -131,27 +77,27 @@ def log_discoveries(new_showtimes: list[dict]) -> None:
             "|".join(st.get("series", [])),
             st.get("purchase_url", ""),
             st.get("details_url", ""),
+            now,
+            now.hour,
+            now.strftime("%A"),
         )
         for st in new_showtimes
     ]
 
+    sql = f"""
+        INSERT INTO {_TABLE}
+            (id, title, date, showtime, location, series,
+             purchase_url, details_url, first_seen, hour, weekday)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        ON CONFLICT (id) DO NOTHING
+    """
+
     try:
-        with _connect() as conn:
-            conn.executemany(
-                """
-                INSERT INTO discoveries
-                    (showtime_id, discovered_at, hour, weekday, title, date,
-                     showtime, location, series, purchase_url, details_url)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                rows,
-            )
-            conn.commit()
-        logger.debug(
-            "Logged %d discovery row(s) → %s", len(new_showtimes), DB_FILE
-        )
-    except sqlite3.Error as exc:
-        logger.warning("Could not write discovery log to DB: %s", exc)
+        with _connect() as conn, conn.cursor() as cur:
+            psycopg2.extras.execute_batch(cur, sql, rows)
+        logger.debug("Logged %d discovery row(s) to %s.", len(rows), _TABLE)
+    except Exception as exc:
+        logger.error("Failed to log discoveries to DB: %s", exc)
 
 
 def find_new_showtimes(showtimes: list[dict], seen_ids: set[str]) -> list[dict]:

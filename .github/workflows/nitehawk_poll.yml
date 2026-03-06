@@ -1,22 +1,14 @@
-name: Nitehawk Special Screenings Poller
+# Scheduling has moved to the Raspberry Pi via Docker Compose.
+# This workflow is intentionally disabled (no schedule trigger).
+# It can be triggered manually from the GitHub Actions UI for one-off runs
+# if needed, but the Pi is the primary runner.
+#
+# To re-enable: add the schedule block back and set up DATABASE_URL as a
+# GitHub Actions secret pointing to an accessible PostgreSQL instance.
 
-# Polls every 15 minutes, 24/7.
-#
-# Free-tier GitHub Actions usage estimate (private repo, 2 000 min/month):
-#   4 runs/hr × 24 h × 30 d × ~0.5 min/run  ≈  1 440 min/month  ✓
-#
-# GitHub Actions cron runs in UTC; no conversion needed since we scrape
-# a website (not an API with timezone-sensitive windows).
-#
-# GitHub Actions secrets required (Settings → Secrets and variables → Actions):
-#   GMAIL_USER          — Gmail address used to send alerts
-#   GMAIL_APP_PASSWORD  — 16-char App Password (not your real Gmail password)
-#   NOTIFY_EMAIL        — Address to receive alerts
+name: Nitehawk Special Screenings Poller (disabled)
 
 on:
-  schedule:
-    - cron: "*/15 * * * *"
-  # Allow manual trigger from the Actions UI for testing
   workflow_dispatch:
 
 jobs:
@@ -36,23 +28,10 @@ jobs:
       - name: Install dependencies
         run: pip install -r NitehawkScraper/requirements.txt
 
-      # Restore the previous nitehawk.db so we only alert on genuinely new showtimes.
-      # The key rotates every run (run_id) so a fresh snapshot is always saved.
-      # restore-keys picks up the latest matching cache from prior runs.
-      - name: Restore database cache
-        uses: actions/cache@v4
-        with:
-          path: NitehawkScraper/nitehawk.db
-          key: nitehawk-db-${{ github.run_id }}
-          restore-keys: |
-            nitehawk-db-
-
       - name: Run single poll
         env:
           GMAIL_USER:         ${{ secrets.GMAIL_USER }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           NOTIFY_EMAIL:       ${{ secrets.NOTIFY_EMAIL }}
-          DB_FILE:            NitehawkScraper/nitehawk.db
+          DATABASE_URL:       ${{ secrets.DATABASE_URL }}
         run: python NitehawkScraper/main.py --once
-
-      # nitehawk.db is automatically saved by actions/cache after the job completes.

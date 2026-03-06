@@ -1,5 +1,6 @@
 # Credentials — never commit
 .env
+*/.env
 
 # State / database files
 state.json

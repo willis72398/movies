@@ -1,24 +1,14 @@
-name: AMC IMAX Showtime Poller
+# Scheduling has moved to the Raspberry Pi via Docker Compose.
+# This workflow is intentionally disabled (no schedule trigger).
+# It can be triggered manually from the GitHub Actions UI for one-off runs
+# if needed, but the Pi is the primary runner.
+#
+# To re-enable: add the schedule block back and set up DATABASE_URL as a
+# GitHub Actions secret pointing to an accessible PostgreSQL instance.
 
-# Two schedules:
-#   normal  — every 15 minutes around the clock
-#   peak    — every 5 minutes from 13:00–17:00 UTC (≈ 9 AM–1 PM ET)
-#
-# Adjust PEAK_HOURS_UTC below to match your local morning window.
-# GitHub Actions cron always runs in UTC.
-#
-# Free-tier usage estimate (private repo, 2 000 min/month limit):
-#   normal: 4/hr × 24 h × 30 d × ~0.5 min/run  ≈  1 440 min/month  ✓
-#   peak adds ~12 extra runs/day × ~0.5 min      ≈     90 min/month  ✓
-#   Total                                         ≈  1 530 min/month  ✓
+name: AMC IMAX Showtime Poller (disabled)
 
 on:
-  schedule:
-    # Normal polling — every 15 minutes
-    - cron: "*/15 * * * *"
-    # Peak polling — every 5 minutes, 13:00–17:00 UTC
-    - cron: "*/5 13-16 * * *"
-  # Allow manual trigger from the GitHub Actions UI
   workflow_dispatch:
 
 jobs:
@@ -38,17 +28,6 @@ jobs:
       - name: Install dependencies
         run: pip install -r AMC/requirements.txt
 
-      # Restore the previous state.json so we only alert on genuinely new showtimes.
-      # The key includes run_id so a fresh cache is always saved after each run.
-      # restore-keys finds the latest saved cache matching the prefix.
-      - name: Restore state cache
-        uses: actions/cache@v4
-        with:
-          path: AMC/state.json
-          key: amc-state-${{ github.run_id }}
-          restore-keys: |
-            amc-state-
-
       - name: Run single poll
         env:
           AMC_API_KEY:        ${{ secrets.AMC_API_KEY }}
@@ -56,6 +35,5 @@ jobs:
           GMAIL_USER:         ${{ secrets.GMAIL_USER }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           NOTIFY_EMAIL:       ${{ secrets.NOTIFY_EMAIL }}
+          DATABASE_URL:       ${{ secrets.DATABASE_URL }}
         run: python AMC/main.py --once
-
-      # state.json is automatically saved by actions/cache after the job completes.
