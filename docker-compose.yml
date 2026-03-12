@@ -62,6 +62,19 @@ services:
       postgres:
         condition: service_healthy
 
+  # ---------------------------------------------------------------------------
+  # Angelika Film Center scraper (NYC, Mosaic, Dallas)
+  # ---------------------------------------------------------------------------
+  angelika:
+    build: ./Angelika
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://movies:${POSTGRES_PASSWORD}@postgres:5432/movies
+    depends_on:
+      postgres:
+        condition: service_healthy
+
 # ---------------------------------------------------------------------------
 # Volumes
 # ---------------------------------------------------------------------------
