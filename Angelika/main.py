@@ -55,7 +55,7 @@ seen_ids: set[str] = set()
 
 
 def poll() -> None:
-    logger.info("Polling Angelika Film Center (NYC, Mosaic, Dallas)…")
+    logger.info("Polling Angelika Film Center NYC…")
 
     try:
         showtimes = fetch_showtimes()
