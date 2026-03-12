@@ -27,16 +27,16 @@ Usage
 Local / Pi (continuous):  python main.py
 GitHub Actions (one-shot): python main.py --once
 
-Environment variables (.env locally, GitHub Actions secrets in CI)
+Environment variables (root .env, shared across all bots)
 ------------------------------------------------------------------
-GMAIL_USER                 — Gmail address used to send notifications
-GMAIL_APP_PASSWORD         — 16-char App Password (not your real Gmail password)
-NOTIFY_EMAIL               — Address to receive alerts
-POLL_INTERVAL_MINUTES      — Off-peak interval in minutes       (default 30)
-PEAK_POLL_INTERVAL_MINUTES — Peak interval in minutes           (default 15)
-PEAK_HOURS_START           — Start of peak window, HH:MM local  (default 11:00)
-PEAK_HOURS_END             — End of peak window,   HH:MM local  (default 18:00)
-DB_FILE                    — Path to SQLite database             (default ./nitehawk.db)
+GMAIL_USER                        — Gmail address used to send notifications
+GMAIL_APP_PASSWORD                — 16-char App Password
+NOTIFY_EMAIL                      — Address to receive alerts
+NITEHAWK_POLL_INTERVAL_MINUTES      — Off-peak interval in minutes       (default 30)
+NITEHAWK_PEAK_POLL_INTERVAL_MINUTES — Peak interval in minutes           (default 15)
+NITEHAWK_PEAK_HOURS_START           — Start of peak window, HH:MM local  (default 11:00)
+NITEHAWK_PEAK_HOURS_END             — End of peak window,   HH:MM local  (default 18:00)
+DATABASE_URL                      — PostgreSQL connection string
 """
 
 import argparse
@@ -46,13 +46,13 @@ import sys
 import time
 from datetime import datetime
 
-from dotenv import load_dotenv
+from dotenv import find_dotenv, load_dotenv
 
 from notifier import send_notification
 from scraper import fetch_all_locations
 from state import find_new_showtimes, load_seen_ids, log_discoveries, save_seen_ids
 
-load_dotenv()
+load_dotenv(find_dotenv(usecwd=True))
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -87,10 +87,10 @@ GMAIL_USER = _require("GMAIL_USER")
 GMAIL_APP_PASSWORD = _require("GMAIL_APP_PASSWORD")
 NOTIFY_EMAIL = _require("NOTIFY_EMAIL")
 
-POLL_INTERVAL = int(_optional("POLL_INTERVAL_MINUTES", "30"))
-PEAK_INTERVAL = int(_optional("PEAK_POLL_INTERVAL_MINUTES", "15"))
-PEAK_START = _optional("PEAK_HOURS_START", "11:00")
-PEAK_END = _optional("PEAK_HOURS_END", "18:00")
+POLL_INTERVAL = int(_optional("NITEHAWK_POLL_INTERVAL_MINUTES", "30"))
+PEAK_INTERVAL = int(_optional("NITEHAWK_PEAK_POLL_INTERVAL_MINUTES", "15"))
+PEAK_START = _optional("NITEHAWK_PEAK_HOURS_START", "11:00")
+PEAK_END = _optional("NITEHAWK_PEAK_HOURS_END", "18:00")
 
 # Module-level seen_ids shared across poll calls in continuous mode
 seen_ids: set[str] = set()
