@@ -23,7 +23,6 @@ import logging
 import re
 from datetime import datetime
 
-import requests
 from playwright.sync_api import sync_playwright
 
 logger = logging.getLogger(__name__)
