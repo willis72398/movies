@@ -100,7 +100,7 @@ _HTML_WRAPPER = """\
                text-decoration: none; border: 1px solid #444;
                padding: 7px 14px; border-radius: 4px; }}
   .row      {{ display: flex; align-items: center; justify-content: space-between;
-               padding: 8px 0; border-top: 1px solid #2a2a2a; }}
+               gap: 16px; padding: 8px 0; border-top: 1px solid #2a2a2a; }}
   .datetime {{ font-size: 14px; color: #ddd; font-family: Arial, sans-serif; }}
   .footer   {{ font-size: 11px; color: #555; margin-top: 24px; }}
   hr        {{ border: none; border-top: 1px solid #333; margin: 20px 0; }}

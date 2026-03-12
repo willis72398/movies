@@ -34,7 +34,7 @@ def _format_dt(iso: str) -> str:
     """'2026-03-12T22:30:00' → 'Thu Mar 12 · 10:30pm'"""
     try:
         dt = datetime.fromisoformat(iso)
-        return dt.strftime("%a %b %-d · %-I:%M%p").lower().replace("am", "am").replace("pm", "pm")
+        return dt.strftime("%a %b %-d · %-I:%M") + dt.strftime("%p").lower()
     except ValueError:
         return iso
 
@@ -106,7 +106,7 @@ _HTML_WRAPPER = """\
   .title   {{ font-size: 20px; font-weight: bold; margin: 0 0 4px; color: #fff; }}
   .format  {{ font-size: 12px; color: #888; margin: 0 0 16px; }}
   .row     {{ display: flex; align-items: center; justify-content: space-between;
-              padding: 8px 0; border-top: 1px solid #2a2a2a; }}
+              gap: 16px; padding: 8px 0; border-top: 1px solid #2a2a2a; }}
   .dt      {{ font-size: 14px; color: #ddd; font-family: Arial, sans-serif; }}
   .btn     {{ display: inline-block; background: #f5c518; color: #111;
               font-family: Arial, sans-serif; font-size: 12px; font-weight: bold;
