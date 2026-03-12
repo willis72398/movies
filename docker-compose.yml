@@ -37,6 +37,19 @@ services:
         condition: service_healthy
 
   # ---------------------------------------------------------------------------
+  # Metrograph NYC scraper
+  # ---------------------------------------------------------------------------
+  metrograph:
+    build: ./Metrograph
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://movies:${POSTGRES_PASSWORD}@postgres:5432/movies
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ---------------------------------------------------------------------------
   # AMC IMAX bot
   # ---------------------------------------------------------------------------
   amc:
