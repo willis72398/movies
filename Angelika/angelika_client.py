@@ -128,6 +128,8 @@ def _scrape_theater(browser, theater_name: str, url: str) -> list[dict]:
                     logger.info("  nowShowing list[%d]", len(ns))
                     if ns and isinstance(ns[0], dict):
                         logger.info("  nowShowing[0] keys: %s", list(ns[0].keys())[:20])
+                        for k, v in list(ns[0].items())[:5]:
+                            logger.info("  nowShowing[0][%s] = %s", k, repr(v)[:100])
                 elif isinstance(ns, dict):
                     logger.info("  nowShowing dict keys: %s", list(ns.keys())[:20])
                     data = ns.get("data", {})
@@ -138,6 +140,12 @@ def _scrape_theater(browser, theater_name: str, url: str) -> list[dict]:
                                         f" len={len(v)}" if hasattr(v, '__len__') else "")
                             if isinstance(v, list) and v and isinstance(v[0], dict):
                                 logger.info("      data[%s][0] keys: %s", k, list(v[0].keys())[:15])
+                                # Look for sessions inside each movie
+                                m0 = v[0]
+                                for sk in ("sessions", "showtimes", "dates", "times", "schedule", "extra_info", "theater"):
+                                    if sk in m0:
+                                        sv = m0[sk]
+                                        logger.info("      movie[%s] = %s", sk, repr(sv)[:300])
                     elif isinstance(data, list):
                         logger.info("  nowShowing.data list[%d]", len(data))
                         if data and isinstance(data[0], dict):
@@ -152,6 +160,13 @@ def _scrape_theater(browser, theater_name: str, url: str) -> list[dict]:
         page.goto(url, timeout=60_000, wait_until="networkidle")
     except Exception as exc:
         logger.warning("Navigation warning for %s: %s", theater_name, exc)
+
+    # Also grab the rendered page text to see if showtimes appear in the DOM
+    try:
+        page_text = page.inner_text("body")
+        logger.info("%s: page text sample: %s", theater_name, page_text[:500].replace('\n', ' '))
+    except Exception:
+        pass
 
     logger.info("%s: captured %d API response(s)", theater_name, len(api_responses))
     context.close()
