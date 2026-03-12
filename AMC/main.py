@@ -125,7 +125,7 @@ def main() -> None:
     # Run one poll immediately on startup, then on the interval.
     poll()
 
-    scheduler = BlockingScheduler(timezone="local")
+    scheduler = BlockingScheduler(timezone="UTC")
     scheduler.add_job(
         poll,
         trigger="interval",

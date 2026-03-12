@@ -97,7 +97,7 @@ def main() -> None:
 
     poll()
 
-    scheduler = BlockingScheduler(timezone="local")
+    scheduler = BlockingScheduler(timezone="UTC")
     scheduler.add_job(
         poll,
         trigger="interval",
