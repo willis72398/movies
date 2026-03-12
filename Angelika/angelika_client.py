@@ -103,9 +103,17 @@ def _scrape_theater(browser, theater_name: str, url: str) -> list[dict]:
             logger.debug("RESPONSE %d  %s", response.status, resp_url)
         if API_HOST not in resp_url:
             return
-        logger.info("API response: %s", resp_url)
         try:
             body = response.json()
+            # Log top-level structure so we can understand the shape
+            if isinstance(body, dict):
+                logger.info("API response %s → keys: %s", resp_url.split("?")[0].split("/")[-1], list(body.keys()))
+            elif isinstance(body, list):
+                logger.info("API response %s → list[%d]", resp_url.split("?")[0].split("/")[-1], len(body))
+                if body:
+                    first = body[0]
+                    if isinstance(first, dict):
+                        logger.info("  first item keys: %s", list(first.keys())[:15])
             api_responses.append({"url": resp_url, "body": body})
         except Exception as exc:
             logger.warning("Could not parse API response as JSON (%s): %s", resp_url, exc)
