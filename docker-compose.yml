@@ -27,7 +27,7 @@ services:
   # Nitehawk Cinema scraper
   # ---------------------------------------------------------------------------
   nitehawk:
-    build: ./NitehawkScraper
+    build: ./Nitehawk
     restart: unless-stopped
     env_file: .env
     environment:
