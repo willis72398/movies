@@ -130,11 +130,18 @@ def _scrape_theater(browser, theater_name: str, url: str) -> list[dict]:
                         logger.info("  nowShowing[0] keys: %s", list(ns[0].keys())[:20])
                 elif isinstance(ns, dict):
                     logger.info("  nowShowing dict keys: %s", list(ns.keys())[:20])
-                    # Check one level deeper
-                    for k, v in list(ns.items())[:3]:
-                        logger.info("  nowShowing[%s] type=%s", k, type(v).__name__)
-                        if isinstance(v, list) and v and isinstance(v[0], dict):
-                            logger.info("    [%s][0] keys: %s", k, list(v[0].keys())[:15])
+                    data = ns.get("data", {})
+                    if isinstance(data, dict):
+                        logger.info("  nowShowing.data keys: %s", list(data.keys())[:20])
+                        for k, v in list(data.items())[:5]:
+                            logger.info("    data[%s] type=%s%s", k, type(v).__name__,
+                                        f" len={len(v)}" if hasattr(v, '__len__') else "")
+                            if isinstance(v, list) and v and isinstance(v[0], dict):
+                                logger.info("      data[%s][0] keys: %s", k, list(v[0].keys())[:15])
+                    elif isinstance(data, list):
+                        logger.info("  nowShowing.data list[%d]", len(data))
+                        if data and isinstance(data[0], dict):
+                            logger.info("  nowShowing.data[0] keys: %s", list(data[0].keys())[:20])
             api_responses.append({"url": resp_url, "body": body})
         except Exception as exc:
             logger.warning("Could not parse API response as JSON (%s): %s", resp_url, exc)
