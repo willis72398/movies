@@ -97,13 +97,18 @@ def _scrape_theater(browser, theater_name: str, url: str) -> list[dict]:
     api_responses: list[dict] = []
 
     def on_response(response):
-        if API_HOST not in response.url:
+        resp_url = response.url
+        # Log all non-static URLs so we can see what the SPA is calling
+        if not any(ext in resp_url for ext in (".js", ".css", ".png", ".ico", ".woff")):
+            logger.debug("RESPONSE %d  %s", response.status, resp_url)
+        if API_HOST not in resp_url:
             return
+        logger.info("API response: %s", resp_url)
         try:
             body = response.json()
-            api_responses.append({"url": response.url, "body": body})
-        except Exception:
-            pass
+            api_responses.append({"url": resp_url, "body": body})
+        except Exception as exc:
+            logger.warning("Could not parse API response as JSON (%s): %s", resp_url, exc)
 
     page.on("response", on_response)
 
@@ -112,6 +117,7 @@ def _scrape_theater(browser, theater_name: str, url: str) -> list[dict]:
     except Exception as exc:
         logger.warning("Navigation warning for %s: %s", theater_name, exc)
 
+    logger.info("%s: captured %d API response(s)", theater_name, len(api_responses))
     context.close()
 
     # ------------------------------------------------------------------
