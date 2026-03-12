@@ -94,7 +94,7 @@ _HTML_WRAPPER = """\
   .btn      {{ display: inline-block; background: #f5c518; color: #111;
                font-family: Arial, sans-serif; font-size: 13px; font-weight: bold;
                text-decoration: none; padding: 8px 18px; border-radius: 4px;
-               margin-right: 8px; }}
+               margin-left: 24px; margin-right: 8px; }}
   .btn-alt  {{ display: inline-block; background: transparent; color: #aaa;
                font-family: Arial, sans-serif; font-size: 12px;
                text-decoration: none; border: 1px solid #444;

@@ -95,7 +95,7 @@ _HTML_WRAPPER = """\
   .btn     {{ display: inline-block; background: #f5c518; color: #111;
               font-family: Arial, sans-serif; font-size: 12px; font-weight: bold;
               text-decoration: none; padding: 6px 14px; border-radius: 4px;
-              white-space: nowrap; }}
+              white-space: nowrap; margin-left: 24px; }}
   .film-link {{ font-size: 11px; color: #666; font-family: Arial, sans-serif;
                 text-decoration: none; margin-left: 10px; }}
   .footer  {{ font-size: 11px; color: #555; margin-top: 24px; font-family: Arial, sans-serif; }}
