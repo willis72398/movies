@@ -114,6 +114,26 @@ def _scrape_theater(browser, theater_name: str, url: str) -> list[dict]:
                     first = body[0]
                     if isinstance(first, dict):
                         logger.info("  first item keys: %s", list(first.keys())[:15])
+                        # If this looks like a film, log nested session keys
+                        for session_key in ("sessions", "showtimes", "sessionList", "dates"):
+                            if session_key in first and first[session_key]:
+                                s0 = first[session_key]
+                                if isinstance(s0, list) and s0:
+                                    logger.info("  [%s] first session keys: %s", session_key, list(s0[0].keys())[:15] if isinstance(s0[0], dict) else s0[0])
+            # If films response, log nowShowing structure
+            if "films" in resp_url and isinstance(body, dict) and "nowShowing" in body:
+                ns = body["nowShowing"]
+                logger.info("  nowShowing: list[%d]", len(ns) if isinstance(ns, list) else -1)
+                if isinstance(ns, list) and ns:
+                    f0 = ns[0]
+                    logger.info("  nowShowing[0] keys: %s", list(f0.keys())[:20] if isinstance(f0, dict) else f0)
+                    # Look for sessions inside
+                    for session_key in ("sessions", "showtimes", "sessionList", "dates", "times"):
+                        if isinstance(f0, dict) and session_key in f0:
+                            sv = f0[session_key]
+                            logger.info("  [%s] type=%s len=%s", session_key, type(sv).__name__, len(sv) if hasattr(sv, '__len__') else "?")
+                            if isinstance(sv, list) and sv and isinstance(sv[0], dict):
+                                logger.info("  [%s][0] keys: %s", session_key, list(sv[0].keys())[:15])
             api_responses.append({"url": resp_url, "body": body})
         except Exception as exc:
             logger.warning("Could not parse API response as JSON (%s): %s", resp_url, exc)
