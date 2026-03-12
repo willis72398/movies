@@ -176,6 +176,9 @@ def _scrape_theater(browser, theater_name: str, theater_slug: str, url: str) -> 
         "%s: captured %d API response(s) total",
         theater_name, len(all_api_bodies),
     )
+    # Log unique endpoint paths to find the session endpoint
+    unique_paths = sorted({r["url"].split("?")[0].split(API_HOST)[-1] for r in all_api_bodies})
+    logger.info("%s: unique endpoints: %s", theater_name, unique_paths)
     context.close()
 
     # ------------------------------------------------------------------
