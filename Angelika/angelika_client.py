@@ -168,14 +168,21 @@ def _scrape_theater(browser, theater_name: str, url: str) -> list[dict]:
     except Exception as exc:
         logger.warning("Navigation warning for %s: %s", theater_name, exc)
 
-    # Also grab the rendered page text to see if showtimes appear in the DOM
+    # Try clicking a film to trigger session loading
     try:
-        page_text = page.inner_text("body")
-        logger.info("%s: page text sample: %s", theater_name, page_text[:500].replace('\n', ' '))
-    except Exception:
-        pass
+        # Click the first film link on the page
+        first_film_link = page.locator("a[href*='/films/']").first
+        if first_film_link.count():
+            href = first_film_link.get_attribute("href")
+            logger.info("%s: navigating to first film: %s", theater_name, href)
+            page.goto(f"https://angelikafilmcenter.com{href}" if href and href.startswith("/") else href,
+                      timeout=30_000, wait_until="networkidle")
+    except Exception as exc:
+        logger.debug("Could not click film: %s", exc)
 
     logger.info("%s: captured %d API response(s)", theater_name, len(api_responses))
+    auth = api_request_headers.get("authorization", "")
+    logger.info("%s: auth header prefix: %s", theater_name, auth[:40] if auth else "(none)")
     logger.info("%s: request headers captured: %s", theater_name, list(api_request_headers.keys()))
     context.close()
 
