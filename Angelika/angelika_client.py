@@ -95,6 +95,12 @@ def _scrape_theater(browser, theater_name: str, url: str) -> list[dict]:
     page = context.new_page()
 
     api_responses: list[dict] = []
+    api_request_headers: dict = {}
+
+    def on_request(request):
+        if API_HOST in request.url:
+            api_request_headers.update(dict(request.headers))
+            logger.debug("API request headers: %s", list(request.headers.keys()))
 
     def on_response(response):
         resp_url = response.url
@@ -154,6 +160,7 @@ def _scrape_theater(browser, theater_name: str, url: str) -> list[dict]:
         except Exception as exc:
             logger.warning("Could not parse API response as JSON (%s): %s", resp_url, exc)
 
+    page.on("request", on_request)
     page.on("response", on_response)
 
     try:
@@ -169,6 +176,7 @@ def _scrape_theater(browser, theater_name: str, url: str) -> list[dict]:
         pass
 
     logger.info("%s: captured %d API response(s)", theater_name, len(api_responses))
+    logger.info("%s: request headers captured: %s", theater_name, list(api_request_headers.keys()))
     context.close()
 
     # ------------------------------------------------------------------
