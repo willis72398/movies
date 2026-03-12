@@ -123,17 +123,18 @@ def _scrape_theater(browser, theater_name: str, url: str) -> list[dict]:
             # If films response, log nowShowing structure
             if "films" in resp_url and isinstance(body, dict) and "nowShowing" in body:
                 ns = body["nowShowing"]
-                logger.info("  nowShowing: list[%d]", len(ns) if isinstance(ns, list) else -1)
-                if isinstance(ns, list) and ns:
-                    f0 = ns[0]
-                    logger.info("  nowShowing[0] keys: %s", list(f0.keys())[:20] if isinstance(f0, dict) else f0)
-                    # Look for sessions inside
-                    for session_key in ("sessions", "showtimes", "sessionList", "dates", "times"):
-                        if isinstance(f0, dict) and session_key in f0:
-                            sv = f0[session_key]
-                            logger.info("  [%s] type=%s len=%s", session_key, type(sv).__name__, len(sv) if hasattr(sv, '__len__') else "?")
-                            if isinstance(sv, list) and sv and isinstance(sv[0], dict):
-                                logger.info("  [%s][0] keys: %s", session_key, list(sv[0].keys())[:15])
+                logger.info("  nowShowing type=%s", type(ns).__name__)
+                if isinstance(ns, list):
+                    logger.info("  nowShowing list[%d]", len(ns))
+                    if ns and isinstance(ns[0], dict):
+                        logger.info("  nowShowing[0] keys: %s", list(ns[0].keys())[:20])
+                elif isinstance(ns, dict):
+                    logger.info("  nowShowing dict keys: %s", list(ns.keys())[:20])
+                    # Check one level deeper
+                    for k, v in list(ns.items())[:3]:
+                        logger.info("  nowShowing[%s] type=%s", k, type(v).__name__)
+                        if isinstance(v, list) and v and isinstance(v[0], dict):
+                            logger.info("    [%s][0] keys: %s", k, list(v[0].keys())[:15])
             api_responses.append({"url": resp_url, "body": body})
         except Exception as exc:
             logger.warning("Could not parse API response as JSON (%s): %s", resp_url, exc)
