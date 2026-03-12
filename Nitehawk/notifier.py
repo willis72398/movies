@@ -52,9 +52,18 @@ def _build_plain(count: int, by_location: dict) -> str:
         lines.append(f"{'=' * 52}")
         lines.append(f"  {location.upper()}  —  {n} new showing{'s' if n > 1 else ''}")
         lines.append(f"{'=' * 52}")
-        for i, st in enumerate(items, start=1):
-            lines.append(f"\n[{i}]")
-            lines.append(_plain_showtime(st))
+
+        by_title: dict[str, list] = defaultdict(list)
+        for st in items:
+            by_title[st.get("title", "Unknown")].append(st)
+
+        for title, shows in by_title.items():
+            series = ", ".join(shows[0].get("series", [])) or "—"
+            lines.append(f"\n  {title}")
+            lines.append(f"  {series}")
+            for st in shows:
+                url = st.get("purchase_url", "")
+                lines.append(f"  {st.get('date','?')}  {st.get('time','?')}  →  {url}")
         lines.append("")
     lines.append("─" * 52)
     lines.append("You are receiving this because you set up the Nitehawk Special Screenings Bot.")
@@ -90,6 +99,9 @@ _HTML_WRAPPER = """\
                font-family: Arial, sans-serif; font-size: 12px;
                text-decoration: none; border: 1px solid #444;
                padding: 7px 14px; border-radius: 4px; }}
+  .row      {{ display: flex; align-items: center; justify-content: space-between;
+               padding: 8px 0; border-top: 1px solid #2a2a2a; }}
+  .datetime {{ font-size: 14px; color: #ddd; font-family: Arial, sans-serif; }}
   .footer   {{ font-size: 11px; color: #555; margin-top: 24px; }}
   hr        {{ border: none; border-top: 1px solid #333; margin: 20px 0; }}
 </style>
@@ -112,8 +124,13 @@ _SECTION_HEADER = """\
 _CARD = """\
 <div class="card">
   <p class="title">{title}</p>
-  <p class="datetime">🗓 {date} &nbsp;&nbsp;🕐 {time}</p>
   <p class="series">🎟 {series}</p>
+  {rows}
+</div>"""
+
+_ROW = """\
+<div class="row">
+  <span class="datetime">🗓 {date} &nbsp;&nbsp;🕐 {time}</span>
   {buy_btn}
 </div>"""
 
@@ -125,24 +142,26 @@ _BUY_BTN_NO_DETAILS = """\
 <a class="btn" href="{url}">Buy Tickets</a>"""
 
 
-def _html_card(st: dict) -> str:
-    purchase_url = st.get("purchase_url", "")
-    details_url = st.get("details_url", "")
-    series = ", ".join(st.get("series", [])) or "—"
-
-    if purchase_url and details_url:
-        btn = _BUY_BTN.format(url=escape(purchase_url), details=escape(details_url))
-    elif purchase_url:
-        btn = _BUY_BTN_NO_DETAILS.format(url=escape(purchase_url))
-    else:
-        btn = '<span style="color:#888;font-size:12px;">No ticket link yet</span>'
-
+def _html_card(title: str, series: str, shows: list[dict]) -> str:
+    rows = []
+    for st in shows:
+        purchase_url = st.get("purchase_url", "")
+        details_url = st.get("details_url", "")
+        if purchase_url and details_url:
+            btn = _BUY_BTN.format(url=escape(purchase_url), details=escape(details_url))
+        elif purchase_url:
+            btn = _BUY_BTN_NO_DETAILS.format(url=escape(purchase_url))
+        else:
+            btn = '<span style="color:#888;font-size:12px;">No ticket link yet</span>'
+        rows.append(_ROW.format(
+            date=escape(st.get("date", "?")),
+            time=escape(st.get("time", "?")),
+            buy_btn=btn,
+        ))
     return _CARD.format(
-        title=escape(st.get("title", "Unknown")),
-        date=escape(st.get("date", "?")),
-        time=escape(st.get("time", "?")),
+        title=escape(title),
         series=escape(series),
-        buy_btn=btn,
+        rows="\n  ".join(rows),
     )
 
 
@@ -155,7 +174,19 @@ def _build_html(count: int, by_location: dict) -> str:
             n=n,
             plural="s" if n > 1 else "",
         )
-        cards = "\n".join(_html_card(st) for st in items)
+        # Group by title within the location
+        by_title: dict[str, list] = defaultdict(list)
+        for st in items:
+            by_title[st.get("title", "Unknown")].append(st)
+
+        cards = "\n".join(
+            _html_card(
+                title,
+                ", ".join(shows[0].get("series", [])) or "—",
+                shows,
+            )
+            for title, shows in by_title.items()
+        )
         section_parts.append(f"{header}\n{cards}\n<hr>")
 
     return _HTML_WRAPPER.format(
