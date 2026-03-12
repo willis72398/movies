@@ -26,7 +26,7 @@ from state import find_new_showtimes, load_seen_ids, log_discoveries, save_seen_
 load_dotenv(find_dotenv(usecwd=True))
 
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     format="%(asctime)s  %(levelname)-8s  %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
     handlers=[logging.StreamHandler(sys.stdout)],
