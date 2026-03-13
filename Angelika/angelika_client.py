@@ -157,6 +157,19 @@ def _scrape_theater(browser, theater_name: str, theater_slug: str, url: str) -> 
     context.close()
 
     logger.info("%s: captured %d /films response(s)", theater_name, len(films_bodies))
+    for body in films_bodies:
+        if isinstance(body, dict):
+            adv = body.get("advanceTicket", {})
+            data = adv.get("data", {}) if isinstance(adv, dict) else {}
+            for k in ("advSessions", "cmgSessions"):
+                v = data.get(k) if isinstance(data, dict) else None
+                logger.info("  advanceTicket.data[%s] type=%s%s", k, type(v).__name__,
+                            f" len={len(v)}" if hasattr(v, '__len__') else "")
+                if isinstance(v, list) and v and isinstance(v[0], dict):
+                    film0 = v[0]
+                    sd = film0.get("showdates")
+                    logger.info("    [0].showdates type=%s%s", type(sd).__name__,
+                                f" len={len(sd)}" if hasattr(sd, '__len__') else f" val={sd!r}")
 
     seen_ids: set[str] = set()
     showtimes: list[dict] = []
