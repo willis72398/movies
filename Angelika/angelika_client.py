@@ -71,30 +71,40 @@ def _showtimes_from_adv_sessions(
 ) -> list[dict]:
     """Flatten advSessions / cmgSessions list into normalized showtime dicts."""
     showtimes = []
+    n_films = n_showdates = n_showtypes = n_sessions_raw = 0
     for film in adv_sessions:
         if not isinstance(film, dict):
             continue
+        n_films += 1
         movie_slug = film.get("movieSlug") or film.get("slug") or ""
         title = film.get("name") or "Unknown"
         film_url = f"{BASE_URL}/{theater_slug}/movies/details/{movie_slug}" if movie_slug else ""
 
         showdates = film.get("showdates")
         if not isinstance(showdates, list):
+            logger.debug("  film %s: showdates is %s, skipping", movie_slug, type(showdates).__name__)
             continue
         for showdate in showdates:
             if not isinstance(showdate, dict):
                 continue
+            n_showdates += 1
             showtypes = showdate.get("showtypes")
             if not isinstance(showtypes, list):
+                logger.debug("  showdate %s: showtypes is %s, skipping", showdate.get("date"), type(showtypes).__name__)
                 continue
             for showtype in showtypes:
                 if not isinstance(showtype, dict):
                     continue
+                n_showtypes += 1
                 fmt = showtype.get("type") or "Standard"
                 sessions_list_inner = showtype.get("showtimes")
                 if not isinstance(sessions_list_inner, list):
+                    logger.debug("  showtype %s: showtimes is %s, skipping", fmt, type(sessions_list_inner).__name__)
                     continue
                 for session in sessions_list_inner:
+                    n_sessions_raw += 1
+                    if not isinstance(session, dict):
+                        continue
                     if not isinstance(session, dict):
                         continue
                     session_id = str(session.get("id") or "").strip()
@@ -123,6 +133,8 @@ def _showtimes_from_adv_sessions(
                         "ticket_url": ticket_url,
                         "film_url": film_url,
                     })
+    logger.info("  parse counts: films=%d showdates=%d showtypes=%d sessions_raw=%d → kept=%d",
+                n_films, n_showdates, n_showtypes, n_sessions_raw, len(showtimes))
     return showtimes
 
 
