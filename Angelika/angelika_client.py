@@ -144,48 +144,78 @@ def _showtimes_from_adv_sessions(
 
 def _scrape_theater(browser, theater_name: str, theater_slug: str, url: str) -> list[dict]:
     """
-    Scrape one Angelika theater.  Navigate to the now-playing page and
-    extract all sessions from the /films API response.
+    Scrape one Angelika theater.
     """
     context = browser.new_context(user_agent=USER_AGENT)
     page = context.new_page()
 
-    films_bodies: list[dict] = []
+    all_api_responses: list[dict] = []  # {url, body}
 
     def on_response(response):
         if API_HOST not in response.url:
             return
-        if "/films" not in response.url:
-            return
         try:
             body = response.json()
-            films_bodies.append(body)
+            all_api_responses.append({"url": response.url, "body": body})
         except Exception:
             pass
 
     page.on("response", on_response)
 
+    # Phase 1: now-playing page
     try:
         page.goto(url, timeout=60_000, wait_until="networkidle")
     except Exception as exc:
-        logger.warning("Navigation warning (%s): %s", theater_name, exc)
+        logger.warning("Phase 1 navigation warning (%s): %s", theater_name, exc)
+
+    # Extract one film slug to navigate to its detail page
+    slug_pattern = re.compile(rf"/{theater_slug}/movies/details/([^/?#]+)")
+    try:
+        hrefs = page.eval_on_selector_all("a[href]", "els => els.map(e => e.getAttribute('href'))")
+    except Exception:
+        hrefs = []
+    first_slug = next(
+        (m.group(1) for h in hrefs if h and (m := slug_pattern.search(h))),
+        None
+    )
+
+    # Phase 2: navigate to first film detail page to trigger full session data
+    if first_slug:
+        film_url = f"{BASE_URL}/{theater_slug}/movies/details/{first_slug}"
+        try:
+            page.goto(film_url, timeout=30_000, wait_until="networkidle")
+        except Exception as exc:
+            logger.warning("Phase 2 navigation warning (%s): %s", theater_name, exc)
 
     context.close()
 
-    logger.info("%s: captured %d /films response(s)", theater_name, len(films_bodies))
-    for body in films_bodies:
-        if isinstance(body, dict):
-            adv = body.get("advanceTicket", {})
-            data = adv.get("data", {}) if isinstance(adv, dict) else {}
-            for k in ("advSessions", "cmgSessions"):
-                v = data.get(k) if isinstance(data, dict) else None
-                logger.info("  advanceTicket.data[%s] type=%s%s", k, type(v).__name__,
-                            f" len={len(v)}" if hasattr(v, '__len__') else "")
-                if isinstance(v, list) and v and isinstance(v[0], dict):
-                    film0 = v[0]
-                    sd = film0.get("showdates")
-                    logger.info("    [0].showdates type=%s%s", type(sd).__name__,
-                                f" len={len(sd)}" if hasattr(sd, '__len__') else f" val={sd!r}")
+    # Log ALL captured endpoints and their top-level keys
+    logger.info("%s: captured %d API response(s)", theater_name, len(all_api_responses))
+    for resp in all_api_responses:
+        body = resp["body"]
+        keys = list(body.keys()) if isinstance(body, dict) else f"list[{len(body)}]" if isinstance(body, list) else type(body).__name__
+        logger.info("  %s  keys=%s", resp["url"].split(API_HOST)[1][:80], keys)
+
+    # Log advSessions showtimes type from each /films response
+    for resp in all_api_responses:
+        if "/films" not in resp["url"]:
+            continue
+        body = resp["body"]
+        if not isinstance(body, dict):
+            continue
+        adv = body.get("advanceTicket", {})
+        data = adv.get("data", {}) if isinstance(adv, dict) else {}
+        adv_sess = data.get("advSessions") if isinstance(data, dict) else None
+        if isinstance(adv_sess, list) and adv_sess and isinstance(adv_sess[0], dict):
+            sd_list = adv_sess[0].get("showdates")
+            if isinstance(sd_list, list) and sd_list:
+                st_list = sd_list[0].get("showtypes") if isinstance(sd_list[0], dict) else None
+                if isinstance(st_list, list) and st_list:
+                    first_st = st_list[0]
+                    st_val = first_st.get("showtimes") if isinstance(first_st, dict) else None
+                    logger.info("  advSessions[0].showdates[0].showtypes[0].showtimes type=%s val=%r",
+                                type(st_val).__name__,
+                                st_val if not isinstance(st_val, list) else f"list[{len(st_val)}]")
 
     seen_ids: set[str] = set()
     showtimes: list[dict] = []
