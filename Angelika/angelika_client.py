@@ -98,6 +98,9 @@ def _showtimes_from_adv_sessions(
                 n_showtypes += 1
                 fmt = showtype.get("type") or "Standard"
                 sessions_list_inner = showtype.get("showtimes")
+                if n_showtypes == 1:
+                    logger.info("  FIRST showtype: fmt=%r showtimes type=%s val=%r",
+                                fmt, type(sessions_list_inner).__name__, sessions_list_inner if not isinstance(sessions_list_inner, list) else f"list[{len(sessions_list_inner)}]")
                 if not isinstance(sessions_list_inner, list):
                     logger.debug("  showtype %s: showtimes is %s, skipping", fmt, type(sessions_list_inner).__name__)
                     continue
