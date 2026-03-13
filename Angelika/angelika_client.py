@@ -78,14 +78,23 @@ def _showtimes_from_adv_sessions(
         title = film.get("name") or "Unknown"
         film_url = f"{BASE_URL}/{theater_slug}/movies/details/{movie_slug}" if movie_slug else ""
 
-        for showdate in film.get("showdates") or []:
+        showdates = film.get("showdates")
+        if not isinstance(showdates, list):
+            continue
+        for showdate in showdates:
             if not isinstance(showdate, dict):
                 continue
-            for showtype in showdate.get("showtypes") or []:
+            showtypes = showdate.get("showtypes")
+            if not isinstance(showtypes, list):
+                continue
+            for showtype in showtypes:
                 if not isinstance(showtype, dict):
                     continue
                 fmt = showtype.get("type") or "Standard"
-                for session in showtype.get("showtimes") or []:
+                sessions_list_inner = showtype.get("showtimes")
+                if not isinstance(sessions_list_inner, list):
+                    continue
+                for session in sessions_list_inner:
                     if not isinstance(session, dict):
                         continue
                     session_id = str(session.get("id") or "").strip()
