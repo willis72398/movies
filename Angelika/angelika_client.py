@@ -198,6 +198,12 @@ def _scrape_theater(browser, theater_name: str, theater_slug: str, url: str) -> 
                                             f" len={len(iv)}" if hasattr(iv, '__len__') else "")
                                 if isinstance(iv, list) and iv and isinstance(iv[0], dict):
                                     logger.info("        [0] keys=%s", list(iv[0].keys())[:20])
+                                    # Dump showdates structure one level deeper
+                                    showdates = iv[0].get("showdates")
+                                    if isinstance(showdates, list) and showdates:
+                                        first_sd = showdates[0]
+                                        logger.info("          showdates[0] type=%s%s", type(first_sd).__name__,
+                                                    f" keys={list(first_sd.keys())[:20]}" if isinstance(first_sd, dict) else f" val={first_sd!r:.200}")
     context.close()
 
     # ------------------------------------------------------------------
