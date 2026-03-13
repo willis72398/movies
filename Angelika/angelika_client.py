@@ -217,10 +217,21 @@ def _scrape_theater(browser, theater_name: str, theater_slug: str, url: str) -> 
                                 type(st_val).__name__,
                                 st_val if not isinstance(st_val, list) else f"list[{len(st_val)}]")
 
+    # Log full keys of nowShowing.data.movies[0] from per-film responses
+    for resp in all_api_responses:
+        if "movieSlug" in resp["url"] and "/films" in resp["url"]:
+            body = resp["body"]
+            if isinstance(body, dict):
+                ns = body.get("nowShowing", {})
+                data = ns.get("data", {}) if isinstance(ns, dict) else {}
+                movies = data.get("movies", []) if isinstance(data, dict) else []
+                if isinstance(movies, list) and movies and isinstance(movies[0], dict):
+                    logger.info("  per-film movies[0] ALL keys=%s", list(movies[0].keys()))
+
     seen_ids: set[str] = set()
     showtimes: list[dict] = []
 
-    for body in films_bodies:
+    for body in [r["body"] for r in all_api_responses]:
         if not isinstance(body, dict):
             continue
         adv = body.get("advanceTicket", {})
