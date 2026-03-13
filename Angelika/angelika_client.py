@@ -36,9 +36,10 @@ from playwright.sync_api import sync_playwright
 
 logger = logging.getLogger(__name__)
 
-# Angelika Film Center NYC
 THEATERS = [
     ("Angelika Film Center NYC", "nyc", "https://angelikafilmcenter.com/nyc/now-playing"),
+    ("Village East by Angelika", "villageeast", "https://angelikafilmcenter.com/villageeast/now-playing"),
+    ("Cinema 123 by Angelika", "cinemas123", "https://angelikafilmcenter.com/cinemas123/now-playing"),
 ]
 
 API_HOST = "production-api.readingcinemas.com"
