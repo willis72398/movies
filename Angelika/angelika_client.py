@@ -204,6 +204,16 @@ def _scrape_theater(browser, theater_name: str, theater_slug: str, url: str) -> 
                                         first_sd = showdates[0]
                                         logger.info("          showdates[0] type=%s%s", type(first_sd).__name__,
                                                     f" keys={list(first_sd.keys())[:20]}" if isinstance(first_sd, dict) else f" val={first_sd!r:.200}")
+                                        if isinstance(first_sd, dict):
+                                            showtypes = first_sd.get("showtypes")
+                                            if isinstance(showtypes, list) and showtypes:
+                                                first_st = showtypes[0]
+                                                logger.info("            showtypes[0] type=%s%s", type(first_st).__name__,
+                                                            f" keys={list(first_st.keys())[:20]}" if isinstance(first_st, dict) else f" val={first_st!r:.200}")
+                                                if isinstance(first_st, dict):
+                                                    sessions_inner = first_st.get("sessions") or first_st.get("times") or first_st.get("showtimes") or []
+                                                    if isinstance(sessions_inner, list) and sessions_inner:
+                                                        logger.info("              sessions[0]=%r", sessions_inner[0])
     context.close()
 
     # ------------------------------------------------------------------
