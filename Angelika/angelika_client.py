@@ -174,9 +174,30 @@ def _scrape_theater(browser, theater_name: str, theater_slug: str, url: str) -> 
         "%s: captured %d API response(s) total",
         theater_name, len(all_api_bodies),
     )
-    # Log unique endpoint paths to find the session endpoint
-    unique_paths = sorted({r["url"].split("?")[0].split(API_HOST)[-1] for r in all_api_bodies})
-    logger.info("%s: unique endpoints: %s", theater_name, unique_paths)
+    # Log every captured API URL so we can see what fires on film detail pages
+    for resp in all_api_bodies:
+        body = resp["body"]
+        keys = list(body.keys()) if isinstance(body, dict) else f"list[{len(body)}]" if isinstance(body, list) else type(body).__name__
+        logger.info("API RESP: %s  top_keys=%s", resp["url"], keys)
+
+    # Log full structure of /films calls
+    for resp in all_api_bodies:
+        if "/films" in resp["url"]:
+            body = resp["body"]
+            keys = list(body.keys()) if isinstance(body, dict) else f"list[{len(body)}]"
+            logger.info("FILMS URL: %s  keys=%s", resp["url"], keys)
+            if isinstance(body, dict):
+                for k, v in body.items():
+                    logger.info("  body[%s] type=%s", k, type(v).__name__)
+                    if isinstance(v, dict):
+                        inner = v.get("data", {})
+                        if isinstance(inner, dict):
+                            logger.info("    [%s].data keys=%s", k, list(inner.keys()))
+                            for ik, iv in inner.items():
+                                logger.info("      [%s].data[%s] type=%s%s", k, ik, type(iv).__name__,
+                                            f" len={len(iv)}" if hasattr(iv, '__len__') else "")
+                                if isinstance(iv, list) and iv and isinstance(iv[0], dict):
+                                    logger.info("        [0] keys=%s", list(iv[0].keys())[:20])
     context.close()
 
     # ------------------------------------------------------------------
